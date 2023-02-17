@@ -160,12 +160,10 @@ if __name__ == "__main__":
     ann_path = r'/home/liangly/datasets/coco/annotations/instances_val2017.json'
 
     dataset = LoadCocoDataset(data_path, ann_path)
+
     for i, data in enumerate(dataset):
-        print(data)
-    # dataset = Yolov5Dataset(data_path, ann_path)
-    # for i, data in enumerate(dataset):
-    #     img, labels = data
-    #     for label in labels:
-    #         cv2.rectangle(img, (int(label[0]), int(label[1])), (int(label[2]), int(label[3])), (0, 0, 255), 1, 8)
-    #     cv2.imwrite(str(i)+".jpg", img)
-    #     break
+        img, labels = data['img'], data['anno']
+        for label in labels:
+            cv2.rectangle(img, (int(label[0]), int(label[1])), (int(label[2]), int(label[3])), (0, 0, 255), 1, 8)
+        cv2.imwrite(str(i)+".jpg", img)
+        break
