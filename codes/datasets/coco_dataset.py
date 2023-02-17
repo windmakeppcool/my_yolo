@@ -150,11 +150,6 @@ class LoadCocoDataset(Dataset):
         return annotations  # x1, y1, w, h, label
 
 
-
-
-    
-
-
 if __name__ == "__main__":
     data_path = r'/home/liangly/datasets/coco/val2017'
     ann_path = r'/home/liangly/datasets/coco/annotations/instances_val2017.json'

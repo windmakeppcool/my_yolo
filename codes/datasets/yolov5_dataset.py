@@ -3,8 +3,32 @@ import os
 import numpy as np
 import cv2
 import os.path as osp
+import torch
 
 from torch.utils.data import Dataset
+import sys
+sys.path.append("/home/liangly/my_projects/myYolo/codes")
+from datasets.transforms import random_perspective, Albumentations, augment_hsv
+from utils.general import xyxy2xywhn
+
+
+# 数据增强配置
+hyp_config = {
+    # affine
+    "degrees": 0.0,
+    "scale": 0.5,
+    "perspective": 0.0,
+    "shear": 0.0,
+    "translate": 0.1,
+    # hsv
+    "hsv_h": 0.015,
+    "hsv_s": 0.7,
+    "hsv_v": 0.4,
+    # flip up-down
+    "flipud": 0.0,  # image flip up-down (probability)
+    # flip right-left
+    "fliplr": 0.5  # image flip left-right (probability)
+}
 
 
 class Yolov5Dataset(Dataset):
@@ -24,6 +48,7 @@ class Yolov5Dataset(Dataset):
         self.mosaic_border = [-img_size//2, img_size//2]
         self.center_ratio_range = (0.5, 1.5)
         self.label_combine = []
+        self.albumentations = Albumentations(size=img_size)
     
     def __len__(self):
         return len(self.indices)
@@ -34,6 +59,26 @@ class Yolov5Dataset(Dataset):
             labels = self.load_annotation(index)
         else:
             img, labels = self.load_mosaic(index)
+        img, labels = random_perspective(img, labels, **hyp_config, border=320)
+        nl = len(labels)
+        if nl:
+            labels[:, 1:5] = xyxy2xywhn(labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
+        img, labels = self.albumentations(img, labels)
+        augment_hsv(img, hgain=hyp_config["hsv_h"], sgain=hyp_config["hsv_s"], vgain=hyp_config["hsv_v"])
+        # Flip up-down
+        if random.random() < hyp_config["flipud"]:
+            img = np.flipud(img)
+            if nl:
+                labels[:, 2] = 1- labels[:, 2]
+        # filp left-right
+        if random.random() < hyp_config["fliplr"]:
+            if nl:
+                labels[:, 1] = 1 - labels[:, 1]
+        labels_out = torch.zeros((nl, 6))
+        if nl:
+            labels_out[:, 1:] = torch.from_numpy(labels)
+        img = img.transpose((2, 0, 1))[::-1] # hwc to chw, bgr to rgb
+        img = torch.from_numpy(np.ascontiguousarray(img))
 
         return img, labels
 
@@ -51,12 +96,11 @@ class Yolov5Dataset(Dataset):
             for line in f.readlines():
                 line = line.rstrip('\n').split(' ')
                 annotation = np.zeros((1, 5))
-                annotation[0, :4] = list(map(float, line[1:]))
-                annotation[0, 4] = float(line[0])
+                annotation[0, :] = list(map(float, line))
                 annotations = np.append(annotations, annotation, axis=0)
         # convert cx, cy, w, h -> x1, y1, x2, y2
-        annotations[:, :2] -= annotations[:, 2:4] / 2
-        annotations[:, 2:4] += annotations[:,:2]
+        annotations[:, 1:3] -= annotations[:, 3:] / 2
+        annotations[:, 3:] += annotations[:, 1:3]
         return annotations
 
     def load_mosaic(self, index):
@@ -94,14 +138,15 @@ class Yolov5Dataset(Dataset):
             padw, padh = x1a - x1b, y1a - y1b
             # 根据图片缩放标签
             anno = self.load_annotation(index)
-            anno[:, 0] = (w * anno[:, 0] + padw)
-            anno[:, 1] = (h * anno[:, 1] + padh)
-            anno[:, 2] = (w * anno[:, 2] + padw)
-            anno[:, 3] = (h * anno[:, 3] + padh)
+            anno[:, 1] = (w * anno[:, 1] + padw)
+            anno[:, 2] = (h * anno[:, 2] + padh)
+            anno[:, 3] = (w * anno[:, 3] + padw)
+            anno[:, 4] = (h * anno[:, 4] + padh)
             labels4.append(anno)
-        labels4 = np.concatenate(labels4, 0)
+        labels4 = np.concatenate(labels4, 0)    # 
         np.clip(labels4, 0, 2 * s, out=labels4)
 
+        # 数据增强
         return img4, labels4
 
     def resize(self, img):
@@ -120,5 +165,13 @@ if __name__ == "__main__":
         h, w, _ = img.shape
         for label in labels:
             # cv2.rectangle(img, (int(label[0]*w), int(label[1]*h)), (int(label[2]*w), int(label[3]*h)), (0, 0, 255), 1, 8)
-            cv2.rectangle(img, (int(label[0]), int(label[1])), (int(label[2]), int(label[3])), (0, 0, 255), 1, 8)
+            # x1y1x2y2
+            # cv2.rectangle(img, (int(label[1]), int(label[2])), (int(label[3]), int(label[4])), (0, 0, 255), 1, 8)
+            # cx,cy,w,h,[0,1]
+            cx, cy, lw, lh = label[1]*w, label[2]*h, label[3]*w, label[4]*h
+            x1, y1 = max(0, cx - lw//2), max(0, cy - lh // 2)
+            x2, y2 = min(cx + lw // 2, w), min(cy + lh // 2, h)
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 1, 8)
         cv2.imwrite(str(i)+".jpg", img)
+        if (i == 4):
+            break
