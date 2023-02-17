@@ -39,13 +39,13 @@ class Yolov5Dataset(Dataset):
 
     def load_image(self, index):
         img_path = osp.join(self.image_path, self.indices[index] + ".jpg")
-        print(img_path)
+        # print(img_path)
         img = cv2.imread(img_path)
         return img 
 
     def load_annotation(self, index):
         label_path = osp.join(self.label_path, self.indices[index]+'.txt')
-        print(label_path)
+        # print(label_path)
         annotations = np.zeros((0, 5))
         with open(label_path, "r") as f:
             for line in f.readlines():
@@ -114,10 +114,11 @@ class Yolov5Dataset(Dataset):
 
 if __name__ == "__main__":
     data_path = '/home/liangly/datasets/yolov5'
-    dataset = Yolov5Dataset(data_path, mosaic=False)
+    dataset = Yolov5Dataset(data_path, mosaic=True)
     for i, data in enumerate(dataset):
         img, labels = data
         h, w, _ = img.shape
         for label in labels:
-            cv2.rectangle(img, (int(label[0]*w), int(label[1]*h)), (int(label[2]*w), int(label[3]*h)), (0, 0, 255), 1, 8)
+            # cv2.rectangle(img, (int(label[0]*w), int(label[1]*h)), (int(label[2]*w), int(label[3]*h)), (0, 0, 255), 1, 8)
+            cv2.rectangle(img, (int(label[0]), int(label[1])), (int(label[2]), int(label[3])), (0, 0, 255), 1, 8)
         cv2.imwrite(str(i)+".jpg", img)
