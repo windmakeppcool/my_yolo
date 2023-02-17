@@ -1,7 +1,8 @@
-import os
+
 import os.path as osp
 import cv2
 import numpy as np
+
 
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
@@ -87,6 +88,7 @@ class LoadCocoDataset(Dataset):
         self.coco_dataset = COCO(self.ann_file)
         # image_ids = [397133, 37777, 252219, 87038, 174482, 403385, 6818, 480985, 458054,...]
         self.image_ids = self.coco_dataset.getImgIds()
+        self.indices = [i for i in range(len(self.image_ids))]
         self.load_label()
 
     def __len__(self):
@@ -145,7 +147,12 @@ class LoadCocoDataset(Dataset):
         annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
 
         # 一张图片里有许多标注
-        return annotations
+        return annotations  # x1, y1, w, h, label
+
+
+
+
+    
 
 
 if __name__ == "__main__":
@@ -155,3 +162,10 @@ if __name__ == "__main__":
     dataset = LoadCocoDataset(data_path, ann_path)
     for i, data in enumerate(dataset):
         print(data)
+    # dataset = Yolov5Dataset(data_path, ann_path)
+    # for i, data in enumerate(dataset):
+    #     img, labels = data
+    #     for label in labels:
+    #         cv2.rectangle(img, (int(label[0]), int(label[1])), (int(label[2]), int(label[3])), (0, 0, 255), 1, 8)
+    #     cv2.imwrite(str(i)+".jpg", img)
+    #     break
