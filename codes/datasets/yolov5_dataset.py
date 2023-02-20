@@ -59,7 +59,14 @@ class Yolov5Dataset(Dataset):
             labels = self.load_annotation(index)
         else:
             img, labels = self.load_mosaic(index)
-        img, labels = random_perspective(img, labels, **hyp_config, border=320)
+        img, labels = random_perspective(img,
+                                         labels,
+                                         degrees=hyp_config["degrees"],
+                                         scale=hyp_config["scale"],
+                                         perspective=hyp_config["perspective"],
+                                         shear=hyp_config["shear"],
+                                         translate=hyp_config["translate"],
+                                         border=320)    
         nl = len(labels)
         if nl:
             labels[:, 1:5] = xyxy2xywhn(labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
@@ -74,13 +81,20 @@ class Yolov5Dataset(Dataset):
         if random.random() < hyp_config["fliplr"]:
             if nl:
                 labels[:, 1] = 1 - labels[:, 1]
-        labels_out = torch.zeros((nl, 6))
+        labels_out = torch.zeros((nl, 6)) # 因为标签长度不一致，第一位用于标识是batch第几个
         if nl:
             labels_out[:, 1:] = torch.from_numpy(labels)
         img = img.transpose((2, 0, 1))[::-1] # hwc to chw, bgr to rgb
         img = torch.from_numpy(np.ascontiguousarray(img))
 
-        return img, labels
+        return img, labels_out
+    
+    @staticmethod
+    def collate_fn(batch):
+        im, label = zip(*batch)
+        for i, lb in enumerate(label):
+            lb[:, 0] = i
+        return torch.stack(im, 0), torch.cat(label, 0)
 
     def load_image(self, index):
         img_path = osp.join(self.image_path, self.indices[index] + ".jpg")
