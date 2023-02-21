@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 if platform.system() != "Windows":
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from base import Conv, CSP3Conv, SPPF
+from models.base import Conv, CSP3Conv, SPPF
 
 
 yolov5s_cfg = {
