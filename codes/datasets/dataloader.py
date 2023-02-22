@@ -38,8 +38,8 @@ class _RepeatSampler:
             yield from iter(self.sampler)
 
 
-def create_dataloader(path, img_size=640, batch_size=8, workers=8, rank=-1,
-                      shuffle=True,):
+def create_dataloader(path, is_train=True, img_size=640, batch_size=8, workers=8, rank=-1,
+                      shuffle=True):
     dataset = Yolov5Dataset(path, is_train=True, mosaic=True, img_size=img_size)
     batch_size = min(batch_size, len(dataset))
     nd = torch.cuda.device_count()

@@ -20,6 +20,7 @@ anchors=[
 cfg = {
     "name": "yolov5",
     "root_path": "/home/liangly/my_projects/myYolo/work_dir",
+    "dataset_path": "/home/liangly/datasets/yolov5"
 }
 
 def train():
@@ -32,8 +33,7 @@ def train():
     # get logger
     logger = get_logger(osp.join(work_path, "log.txt"))
     # dataset
-    path = '/home/liangly/datasets/yolov5'
-    loader, dataset = create_dataloader(path, 640, batch_size)
+    loader, dataset = create_dataloader(cfg["dataset_path"], 640, batch_size)
     # model
     model = Yolov5Model().cuda()
     # loss
@@ -56,6 +56,7 @@ def train():
 
             optimizer.step()
             optimizer.zero_grad()
+            
             if (i % 100 == 0):
                 lbox, lobj, lcls = loss_item[0].item(), loss_item[1].item(), loss_item[2].item()
                 logger.info("Epoch {}, iter {}, \
