@@ -137,6 +137,9 @@ class Yolov5Head(nn.Module):
         self.grid = [torch.empty(0) for _ in range(self.nl)]  # init grid
         self.anchor_grid = [torch.empty(0) for _ in range(self.nl)]  # init anchor grid
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)
+        for i in range(len(self.anchors)):
+            self.anchors[i] = [j / self.stride[i] for j in self.anchors[i]]
+
         self.anchors = torch.tensor(self.anchors).view(3, 3, 2).cuda()
 
     def forward(self, x):

@@ -49,6 +49,28 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     return y
 
 
+def xywh2xyxy(x):
+    # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
+    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y[..., 0] = x[..., 0] - x[..., 2] / 2  # top left x
+    y[..., 1] = x[..., 1] - x[..., 3] / 2  # top left y
+    y[..., 2] = x[..., 0] + x[..., 2] / 2  # bottom right x
+    y[..., 3] = x[..., 1] + x[..., 3] / 2  # bottom right y
+    return y
+
+
+def scale_boxes(src_shape, dst_shape, boxes):
+    gain = min(src_shape[0] / dst_shape[0], src_shape[1] / dst_shape[1]) # gain = old / new
+    pad = (src_shape[1] - dst_shape[1] * gain) / 2, (src_shape[0] * gain) / 2
+
+    boxes[..., [0, 2]] -= pad[0]
+    boxes[..., [1, 3]] -= pad[1]
+    boxes[..., :4] /= gain
+    
+    clip_boxes(boxes, dst_shape)
+    return boxes
+
+
 def nms(pred, conf_thres=0.25, iou_thres=0.45, multi_labels=False, agnostic=False, max_det=300):
     max_wh = 7680   # 这里不同类别的nms单独做nms,所以根据idx对不同类的框施加一个偏移量
     max_nms = 30000 # 最大框数量
@@ -69,7 +91,7 @@ def nms(pred, conf_thres=0.25, iou_thres=0.45, multi_labels=False, agnostic=Fals
         #compute conf
         x[:, 5:] *= x[:, 4:5]
         # Box/Mask
-        box = xywhn2xyxy(x[..., :4]) # cx,cy,w,h -> x1,y1,x2,y2
+        box = xywh2xyxy(x[..., :4]) # cx,cy,w,h -> x1,y1,x2,y2
         
         if multi_labels:
             #TODO
@@ -86,8 +108,8 @@ def nms(pred, conf_thres=0.25, iou_thres=0.45, multi_labels=False, agnostic=Fals
         # batch nms
         offset = x[:, 5:6] * (0 if agnostic else max_wh)
         boxes, scores = x[:, :4] + offset, x[:, 4]
-        i = torchvision.ops.nms(boxes, scores, iou_thres)[:max_det]
+        nms_i = torchvision.ops.nms(boxes, scores, iou_thres)[:max_det]
 
-        output[i] = x[i]
+        output[i] = x[nms_i]
     
     return output

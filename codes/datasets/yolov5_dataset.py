@@ -200,7 +200,7 @@ class YoloV5DatasetVal(Yolov5Dataset):
         img = img.transpose((2, 0, 1))[::-1] # hwc to chw, bgr to rgb
         img = np.ascontiguousarray(img)
         data = {
-            "img":img, "labels": annotations, "pad":pad
+            "img":img, "labels": annotations, "pad":pad, "ori_shape":(h_ori, w_ori)
         }
 
         return data
