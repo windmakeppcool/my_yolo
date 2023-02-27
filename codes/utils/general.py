@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import torchvision
 
 
 def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
@@ -46,3 +47,47 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     y[..., 2] = w * (x[..., 0] + x[..., 2] / 2) + padw  # bottom right x
     y[..., 3] = h * (x[..., 1] + x[..., 3] / 2) + padh  # bottom right y
     return y
+
+
+def nms(pred, conf_thres=0.25, iou_thres=0.45, multi_labels=False, agnostic=False, max_det=300):
+    max_wh = 7680   # 这里不同类别的nms单独做nms,所以根据idx对不同类的框施加一个偏移量
+    max_nms = 30000 # 最大框数量
+    
+    # Checks
+    assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
+    assert 0 <= iou_thres <= 1, f'Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0'
+
+    pred = pred.cpu()
+    bs = pred.shape[0]
+    nc = pred.shape[2] - 5
+    xc = pred[..., 4] > conf_thres
+
+    mi = 5 + nc # mask start index
+    output = [torch.zeros((0, 6))] * bs
+    for i in range(bs):
+        x = pred[i][xc[i]]
+        #compute conf
+        x[:, 5:] *= x[:, 4:5]
+        # Box/Mask
+        box = xywhn2xyxy(x[..., :4]) # cx,cy,w,h -> x1,y1,x2,y2
+        
+        if multi_labels:
+            #TODO
+            pass
+        else:
+            conf, j = x[:, 5:mi].max(1, keepdim=True)
+            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]# [..., 6]
+
+        n_box = x.shape[0]
+        if not n_box:
+            continue
+        # 按照置信度降序，且只取前最大个数
+        x = x[x[:, 4].argsort(descending=True)[:max_nms]]
+        # batch nms
+        offset = x[:, 5:6] * (0 if agnostic else max_wh)
+        boxes, scores = x[:, :4] + offset, x[:, 4]
+        i = torchvision.ops.nms(boxes, scores, iou_thres)[:max_det]
+
+        output[i] = x[i]
+    
+    return output

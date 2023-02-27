@@ -140,7 +140,6 @@ class ComputeLoss:
 
 
 if __name__ == "__main__":
-    # 可视化, TODO
     import cv2
     from pycocotools.coco import COCO
     coco_anno_path = r'/home/liangly/datasets/coco/annotations/instances_val2017.json'
