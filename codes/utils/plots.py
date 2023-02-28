@@ -53,7 +53,7 @@ class Annotator:
     
 
 
-def plot_images(images, targets, fname=""):
+def plot_images(images, targets, fname="", is_label=True):
     if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
     if isinstance(targets, torch.Tensor):
@@ -68,12 +68,17 @@ def plot_images(images, targets, fname=""):
     images = np.ascontiguousarray(images)
     annotator = Annotator(images)
     if len(targets) > 0:
-        boxes = xywh2xyxy(targets[:, 1:5]).T
+        if is_label:
+            boxes = xywh2xyxy(targets[:, 1:5]).T
+        else:
+            boxes = targets[:, 1:5]
+            boxes = boxes.T
         classes = targets[:, 0].astype('int')
         if boxes.shape[1]:
             # if boxes.max() <= 1.01:
-            boxes[[0, 2]] *= w
-            boxes[[1, 3]] *= h
+            if is_label:
+                boxes[[0, 2]] *= w
+                boxes[[1, 3]] *= h
         
         for j, box in enumerate(boxes.T.tolist()):
             cls = classes[j]
@@ -88,5 +93,5 @@ def plot_images(images, targets, fname=""):
 
 def output_to_targets(output):
     box, conf, cls = output[:, :6].cpu().split((4, 1, 1), 1)
-    targets = torch.cat((cls, xywh2xyxy(box), conf), 1)
+    targets = torch.cat((cls, box, conf), 1)
     return targets

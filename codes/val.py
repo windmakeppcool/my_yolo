@@ -15,7 +15,7 @@ def val():
     logger = get_logger("tmp.log")
     model = Yolov5Model().to(device).eval()
     # load models
-    model_dict = torch.load(r'/home/liangly/my_projects/myYolo/work_dir/exp/300.pth')
+    model_dict = torch.load(r'/home/liangly/my_projects/myYolo/weights/yolov5_convert.pth')
     model.load_state_dict(model_dict)
     
     path = '/home/liangly/datasets/yolov5'
@@ -28,20 +28,19 @@ def val():
         with torch.no_grad():
             preds, train_out = model(img)
         # nms
-        preds = nms(preds, 0.25, 0.6)
+        pred = nms(preds, 0.25, 0.6)[0]
         # # metrics
-        for si, pred in enumerate(preds):
-            num_label, num_pred = labels.shape[0], pred.shape[0]
+        num_label, num_pred = labels.shape[0], pred.shape[0]
 
-            # pred[:, 5] = 0
-            # predn = pred.clone()
-            # scale_boxes(img[0].shape[1:], ori_shape, predn[:, :4])
+        # pred[:, 5] = 0
+        # predn = pred.clone()
+        # scale_boxes(img[0].shape[1:], ori_shape, predn[:, :4])
 
         if i == 33:
-            # plot_images(img, labels, "tmp_{}.jpg".format(i))
-            plot_images(img, output_to_targets(pred), "tmp_pred_{}.jpg".format(i))
+            plot_images(img, labels, "tmp_{}.jpg".format(i))
+            plot_images(img, output_to_targets(pred), "tmp_pred_{}.jpg".format(i), is_label=False)
             break
-
+        
 
 if __name__ == '__main__':
     val()

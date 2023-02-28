@@ -111,5 +111,5 @@ def nms(pred, conf_thres=0.25, iou_thres=0.45, multi_labels=False, agnostic=Fals
         nms_i = torchvision.ops.nms(boxes, scores, iou_thres)[:max_det]
 
         output[i] = x[nms_i]
-    
+    # x1y1x2y2,conf,label
     return output
