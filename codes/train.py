@@ -20,7 +20,9 @@ anchors=[
 cfg = {
     "name": "yolov5",
     "root_path": "/home/liangly/my_projects/myYolo/work_dir",
-    "dataset_path": "/home/liangly/datasets/yolov5"
+    "dataset_path": "/home/liangly/datasets/yolov5",
+    "epochs": 150,
+    "batch_size": 64
 }
 
 def train():
@@ -29,17 +31,17 @@ def train():
     mkdir(work_path)
     # config
     device = torch.device("cuda")
-    batch_size = 64
+    batch_size = cfg["batch_size"]
     # get logger
     logger = get_logger(osp.join(work_path, "log.txt"))
     # dataset
-    loader, dataset = create_dataloader(cfg["dataset_path"], 640, batch_size)
+    loader, dataset = create_dataloader(cfg["dataset_path"], img_size=640, batch_size=batch_size)
     # model
     model = Yolov5Model().cuda()
     # loss
     compute_loss = ComputeLoss(anchors=model.head.anchors, device=device)
     # config
-    epochs = 300
+    epochs = cfg["epochs"]
     # optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
@@ -64,7 +66,8 @@ def train():
                         epoch, i, lbox, lobj, lcls, loss.item() / batch_size))
 
         if (epoch + 1) % 10 == 0:
-            torch.save(model.state_dict(), "/home/liangly/my_projects/myYolo/work_dir/exp/epoch_{}.pth".format(epoch+1))
+            # torch.save(model.state_dict(), "/home/liangly/my_projects/myYolo/work_dir/exp/epoch_{}.pth".format(epoch+1))
+            torch.save(model.state_dict(), osp.join(work_path, 'epoch_{}.pth'.format(epoch+1)))
 
         scheduler.step()
 
