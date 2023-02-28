@@ -75,7 +75,7 @@ class YoloV5Backbone(nn.Module):
 class YoloV5Neck(nn.Module):
     def __init__(self):
         super().__init__()
-        
+
         self.c1_0 = Conv(512, 256, 1)  # model.10
         self.c1_1 = CSP3Conv(512, 256, 1, False) #model.13
         self.c2_0 = Conv(256, 128, 1)   #model.14
@@ -193,6 +193,7 @@ class Yolov5Model(nn.Module):
         out = self.head([out_1, out_2, out_3])
 
         return out
+
 
 if __name__ == '__main__':
     model = Yolov5Model().cuda()
