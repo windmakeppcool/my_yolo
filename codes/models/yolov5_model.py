@@ -53,10 +53,10 @@ class YoloV5Backbone(nn.Module):
     def __init__(self):
         super().__init__()
         self.stage_1 = Stage(0, 1, *yolov5s_cfg[0], 2)
-        self.stage_2 = Stage(1, 3, *yolov5s_cfg[1])
-        self.stage_3 = Stage(2, 6, *yolov5s_cfg[2])
-        self.stage_4 = Stage(3, 9, *yolov5s_cfg[3])
-        self.stage_5 = Stage(4, 3, *yolov5s_cfg[4])
+        self.stage_2 = Stage(1, 1, *yolov5s_cfg[1])
+        self.stage_3 = Stage(2, 2, *yolov5s_cfg[2])
+        self.stage_4 = Stage(3, 3, *yolov5s_cfg[3])
+        self.stage_5 = Stage(4, 1, *yolov5s_cfg[4])
         
         self.sppf = SPPF(yolov5s_cfg[4][1],
                          yolov5s_cfg[4][1], 5)
@@ -75,44 +75,43 @@ class YoloV5Backbone(nn.Module):
 class YoloV5Neck(nn.Module):
     def __init__(self):
         super().__init__()
-        out_channels = []
-        for i in range(2, 5):
-            out_channels.append(yolov5s_cfg[i][1])
-
-        assert(len(out_channels) == 3)
-
-        self.cv1 = Conv(out_channels[2], out_channels[1], 1)
-        self.cv2 = Conv(out_channels[1], out_channels[0], 1)
-        self.cv3 = Conv(out_channels[0], out_channels[0], 3, 2)
-        self.cv4 = Conv(out_channels[1], out_channels[1], 3, 2)
-
-        self.c3_1 = CSP3Conv(out_channels[2], out_channels[1], 3, False)
-        self.c3_2 = CSP3Conv(out_channels[1], out_channels[0], 3, False)
-        self.c3_3 = CSP3Conv(out_channels[1], out_channels[1], 3, False)
-        self.c3_4 = CSP3Conv(out_channels[2], out_channels[2], 3, False)
+        
+        self.c1_0 = Conv(512, 256, 1)  # model.10
+        self.c1_1 = CSP3Conv(512, 256, 1, False) #model.13
+        self.c2_0 = Conv(256, 128, 1)   #model.14
+        self.c2_1 = CSP3Conv(256, 128, 1, False) # model.17
+        self.c3_0 = Conv(128, 128, 3, 2)   # model.18
+        self.c3_1 = CSP3Conv(256, 256, 1, False) # model.20
+        self.c4_0 = Conv(256, 256, 3, 2)   # model.21
+        self.c4_1 = CSP3Conv(512, 512, 1, False) # model.23
 
         self.up_1 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_2 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_3 = nn.Upsample(scale_factor=2, mode='nearest')
 
-    def forward(self, out_1, out_2, out_3):
-        x1 = self.cv1(out_3)
-        out_3 = self.up_1(x1)
-        out_2 = torch.cat([out_3, out_2], 1)
-        out_2 = self.c3_1(out_2)
-        x2 = self.cv2(out_2)
-        out_2 = self.up_2(x2)
-        x3 = torch.cat([out_2, out_1], 1)
+    def forward(self, x1, x2, x3):
+        # input:x1 128x80x80, x2 256x40x40, x3 512x20x20
+        # output: x1 128x80x80, x2 256x40x40, x3 512x20x20
+        x3 = self.c1_0(x3)  #256x20x20
+        x3_up = self.up_1(x3)
 
-        x3 = self.c3_2(x3)
-        out_3 = self.cv3(x3)
-        x2 = torch.cat([out_3, x2], 1)
-        x2 = self.c3_3(x2)
-        out_2 = self.cv4(x2)
-        x1 = torch.cat([out_2, x1], 1)
-        x1 = self.c3_4(x1)
+        x2 = torch.cat([x3_up, x2], 1)
+        x2 = self.c1_1(x2)
+        x2 = self.c2_0(x2)  # 128x40x40
+        x2_up = self.up_2(x2)
 
-        return x3, x2, x1
+        x1 = torch.cat([x2_up, x1], 1) #256x80x80
+        x1 = self.c2_1(x1)
+        x1_down = self.c3_0(x1)
+
+        x2 = torch.cat([x1_down, x2], 1)
+        x2 = self.c3_1(x2)
+        x2_down = self.c4_0(x2)
+        
+        x3 = torch.cat([x2_down, x3], 1)
+        x3 = self.c4_1(x3)
+
+        return x1, x2, x3
 
 
 class Yolov5Head(nn.Module):
