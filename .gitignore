@@ -164,3 +164,7 @@ cython_debug/
 .vscode/*
 *.pth
 work/*
+weights/*
+work_dir/*
+wandb/*
+codes/wandb/*

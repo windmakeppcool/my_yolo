@@ -15,7 +15,7 @@ def val():
     logger = get_logger("tmp.log")
     model = Yolov5Model().to(device).eval()
     # load models
-    model_dict = torch.load(r'/home/liangly/my_projects/myYolo/weights/yolov5_convert.pth')
+    model_dict = torch.load(r'/home/liangly/my_projects/myYolo/work_dir/yolov5_20230228170316/epoch_30.pth')
     model.load_state_dict(model_dict)
     
     path = '/home/liangly/datasets/yolov5'

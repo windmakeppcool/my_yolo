@@ -2,13 +2,24 @@ import torch
 import numpy as np
 import os
 import os.path as osp
+import sys
 from datetime import datetime
+
+import wandb
+
+root_path = osp.abspath(osp.dirname(__file__))
+root_path = osp.abspath(osp.dirname(root_path))
+print("root_path: ", root_path)
+sys.path.append(root_path)
+sys.path.append(osp.join(root_path, 'codes'))
 
 from datasets.dataloader import create_dataloader
 from models.yolov5_model import Yolov5Model
 from loss import ComputeLoss
 from utils.log import get_logger
 from utils.path import mkdir
+
+os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 anchors=[
     [10,13, 16,30, 33,23],
@@ -18,12 +29,20 @@ anchors=[
 
 
 cfg = {
-    "name": "yolov5",
-    "root_path": "/home/liangly/my_projects/myYolo/work_dir",
+    "name": "yolov5_debug",
+    "root_path": osp.join(root_path, "wandb"),
     "dataset_path": "/home/liangly/datasets/yolov5",
     "epochs": 150,
-    "batch_size": 64
+    "batch_size": 64,
+    "lr": 0.001
 }
+
+wandb.init(
+    project='yolov5',
+    config=cfg,
+    dir=cfg["root_path"]
+)
+
 
 def train():
     cfg['name'] = cfg['name'] + '_' + datetime.strftime(datetime.now(),'%Y%m%d%H%M%S')
@@ -31,7 +50,7 @@ def train():
     mkdir(work_path)
     # config
     device = torch.device("cuda")
-    batch_size = cfg["batch_size"]
+    batch_size = wandb.config.batch_size
     # get logger
     logger = get_logger(osp.join(work_path, "log.txt"))
     # dataset
@@ -41,7 +60,7 @@ def train():
     # loss
     compute_loss = ComputeLoss(anchors=model.head.anchors, device=device)
     # config
-    epochs = cfg["epochs"]
+    epochs = wandb.config.epochs
     # optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
@@ -64,7 +83,7 @@ def train():
                 logger.info("Epoch {}, iter {}, \
                     box loss: {:.4f}, obj loss {:.4f}, cls loss {:.4f}, total loss {:.4f}".format(
                         epoch, i, lbox, lobj, lcls, loss.item() / batch_size))
-
+                wandb.log({"obj loss":lobj, "box loss":lbox, "cls loss": lcls, "total loss": loss.item() / batch_size})
         if (epoch + 1) % 10 == 0:
             # torch.save(model.state_dict(), "/home/liangly/my_projects/myYolo/work_dir/exp/epoch_{}.pth".format(epoch+1))
             torch.save(model.state_dict(), osp.join(work_path, 'epoch_{}.pth'.format(epoch+1)))
