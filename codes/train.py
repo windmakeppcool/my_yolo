@@ -21,6 +21,7 @@ from utils.path import mkdir
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
+
 anchors=[
     [10,13, 16,30, 33,23],
     [30,61, 62,45, 59,119],
@@ -29,7 +30,7 @@ anchors=[
 
 
 cfg = {
-    "name": "yolov5_debug",
+    "name": "yolov5s",
     "root_path": osp.join(root_path, "wandb"),
     "dataset_path": "/home/liangly/datasets/yolov5",
     "epochs": 150,
@@ -62,7 +63,7 @@ def train():
     # config
     epochs = wandb.config.epochs
     # optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, nesterov=True)
+    optimizer = torch.optim.SGD(model.parameters(), lr=wandb.config.lr, momentum=0.9, nesterov=True)
     lf = lambda x: (1 - x / epochs) * (1.0 - 0.01) + 0.01  # linear
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
 
@@ -79,15 +80,20 @@ def train():
             optimizer.zero_grad()
             
             if (i % 100 == 0):
-                lbox, lobj, lcls = loss_item[0].item(), loss_item[1].item(), loss_item[2].item()
+                lbox = loss_item[0].item() * batch_size
+                lobj = loss_item[1].item() * batch_size
+                lcls = loss_item[2].item() * batch_size
+
                 logger.info("Epoch {}, iter {}, \
                     box loss: {:.4f}, obj loss {:.4f}, cls loss {:.4f}, total loss {:.4f}".format(
                         epoch, i, lbox, lobj, lcls, loss.item() / batch_size))
-                wandb.log({"obj loss":lobj, "box loss":lbox, "cls loss": lcls, "total loss": loss.item() / batch_size})
+                wandb.log({"obj loss":lobj, "box loss":lbox, "cls loss": lcls, "total loss": loss.item()})
+        
+            
         if (epoch + 1) % 10 == 0:
             # torch.save(model.state_dict(), "/home/liangly/my_projects/myYolo/work_dir/exp/epoch_{}.pth".format(epoch+1))
             torch.save(model.state_dict(), osp.join(work_path, 'epoch_{}.pth'.format(epoch+1)))
-
+        wandb.log({"learning rate": optimizer.state_dict()['param_groups'][0]['lr']})
         scheduler.step()
 
 
